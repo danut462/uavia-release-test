@@ -20,7 +20,7 @@ jobs:
         with:
           release-type: ${{ inputs.releaseType }}
           package-name: ${{ github.event.repository.name }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT_TOKEN }}
           default-branch: main
           bump-minor-pre-major: true
           include-v-in-tag: false
