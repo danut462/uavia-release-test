@@ -28,8 +28,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
-          PR_BRANCH=$(gh pr view "${{ inputs.pr_number }}" --json headRefName --jq '.headRefName')
+          # Clone repository first
           git clone https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }}.git .
+
+          # Get PR branch name
+          PR_BRANCH=$(gh pr view "${{ inputs.pr_number }}" --repo ${{ github.repository }} --json headRefName --jq '.headRefName')
+
           git fetch origin "$PR_BRANCH"
           git checkout "$PR_BRANCH"
 
