@@ -8,6 +8,11 @@ on:
   # You can also manually trigger this workflow from GitHub Actions tab
   workflow_dispatch:
 
+# Required permissions for release-please to create releases and PRs
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   # Only run if commit message starts with "release:"
   check-release-commit:
