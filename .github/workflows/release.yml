@@ -21,14 +21,24 @@ jobs:
     with:
       releaseType: "simple"
 
-  # Auto-merge the release PR if commit message starts with "release:"
-  auto-merge-release:
+  # Get latest versions of dependencies (only runs when releasing)
+  get-dependency-versions:
     needs: release-please
     if: startsWith(github.event.head_commit.message, 'release:')
+    uses: ./.github/workflows/get-dependency-versions.yml
+    secrets:
+      PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+    with:
+      repositories: "UAVIA/uavia-ckt,UAVIA/uavia-srp"
+
+  # Auto-merge the release PR if commit message starts with "release:"
+  auto-merge-release:
+    needs: [release-please, get-dependency-versions]
+    if: ${{ !cancelled() && needs.get-dependency-versions.result == 'success' }}
     uses: ./.github/workflows/auto-merge-release.yml
     secrets:
       PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
     with:
       update_version_file: true
       update_conan_dependencies: true
-      conan_dependencies: '{"ckt": "{{VERSION}}", "srp": "{{VERSION}}"}'
+      conan_dependencies: ${{ needs.get-dependency-versions.outputs.versions_json }}

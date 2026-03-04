@@ -1,0 +1,99 @@
+name: Get Dependency Versions
+
+# Reusable workflow to fetch latest release versions from specified repositories
+on:
+  workflow_call:
+    inputs:
+      repositories:
+        type: string
+        description: 'Comma-separated list of repository names (e.g., "UAVIA/uavia-ckt,UAVIA/uavia-srp")'
+        required: true
+    outputs:
+      versions_json:
+        description: 'JSON object with repository versions (e.g., {"ckt": "1.2.3", "srp": "2.3.4"})'
+        value: ${{ jobs.get-versions.outputs.versions_json }}
+    secrets:
+      PAT_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  get-versions:
+    runs-on: ubuntu-latest
+    outputs:
+      versions_json: ${{ steps.build-json.outputs.versions_json }}
+    steps:
+      - name: Get latest versions
+        id: fetch-versions
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          echo "📦 Fetching latest versions for dependencies..."
+
+          # Parse comma-separated repositories
+          IFS=',' read -ra REPOS <<< "${{ inputs.repositories }}"
+
+          # Initialize output file
+          > versions.txt
+
+          for repo in "${REPOS[@]}"; do
+            # Trim whitespace
+            repo=$(echo "$repo" | xargs)
+
+            echo "  Checking repository: $repo"
+
+            # Get latest release tag (use releases, not all tags, as they're semantic)
+            LATEST_VERSION=$(gh release list --repo "$repo" --limit 1 --json tagName --jq '.[0].tagName' 2>/dev/null || echo "")
+
+            if [ -z "$LATEST_VERSION" ]; then
+              echo "    ⚠️  No releases found, trying latest tag..."
+              LATEST_VERSION=$(gh api "repos/$repo/tags" --jq '.[0].name' 2>/dev/null || echo "")
+            fi
+
+            if [ -z "$LATEST_VERSION" ]; then
+              echo "    ❌ ERROR: Could not find version for $repo"
+              exit 1
+            fi
+
+            # Remove 'v' prefix if present
+            LATEST_VERSION=${LATEST_VERSION#v}
+
+            echo "    ✅ Latest version: $LATEST_VERSION"
+
+            # Extract short name (last part after /)
+            SHORT_NAME=$(echo "$repo" | awk -F'/' '{print $NF}' | sed 's/^uavia-//')
+
+            # Save to file
+            echo "$SHORT_NAME:$LATEST_VERSION" >> versions.txt
+          done
+
+          echo "📋 Versions found:"
+          cat versions.txt
+
+      - name: Build JSON output
+        id: build-json
+        run: |
+          echo "🔧 Building JSON output..."
+
+          # Convert versions.txt to JSON format
+          # Input format: ckt:1.2.3
+          # Output format: {"ckt": "1.2.3", "srp": "2.3.4"}
+
+          JSON="{"
+          FIRST=true
+
+          while IFS=':' read -r name version; do
+            if [ "$FIRST" = true ]; then
+              FIRST=false
+            else
+              JSON+=","
+            fi
+            JSON+="\"$name\": \"$version\""
+          done < versions.txt
+
+          JSON+="}"
+
+          echo "versions_json=$JSON" >> $GITHUB_OUTPUT
+          echo "📤 Output JSON: $JSON"
