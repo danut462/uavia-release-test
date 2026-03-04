@@ -1,0 +1,46 @@
+name: Build testing
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+    build:
+        strategy:
+            fail-fast: false
+            matrix:
+                build:
+                - {
+                  host: "self-hosted",
+                  labels: ["self-hosted", "Linux", "X64", "ubuntu22"],
+                  runner: "native",
+                  arch: "armv8",
+                  shared: "False",
+                  compiler: { name: "GCC", versions: "6" },
+                  profiles: { host: "default", target: "parrot-airsdk-anafi2-classic-7.7.0", },
+                }
+                - {
+                  host: "self-hosted",
+                  labels: ["self-hosted", "Linux", "X64", "ubuntu24"],
+                  runner: "native",
+                  arch: "armv8",
+                  shared: "False",
+                  compiler: { name: "GCC", versions: "6" },
+                  profiles: { host: "default", target: "parrot-airsdk-anafi3-pc-8.3.0", },
+                }
+                - {
+                    host: "self-hosted",
+                    labels: ["self-hosted", "Linux", "X64", "ubuntu22"],
+                    runner: "native",
+                    arch: "x86_64",
+                    shared: "False",
+                    compiler: { name: "GCC", versions: "9" },
+                    profiles: { host: "default", target: "yocto-gcc-9-glibc-x86_64-uavia-sdk-3.1.33", },
+                  }
+        uses: ./.github/workflows/common_steps.yml
+        secrets: inherit
+        with:
+            build-matrix: ${{ toJson(matrix.build) }}
+            conan_channel: 'testing'
+            testmode: false # Do not launch tests.

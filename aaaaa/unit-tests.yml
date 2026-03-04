@@ -1,0 +1,133 @@
+name: Run ckt nightly
+
+on:
+  schedule:
+    - cron: "0 1 * * 1-5"  # Run at 01:00 on Monday to Friday
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        build:
+            - {
+                host: "self-hosted",
+                labels: ["self-hosted", "Linux", "X64", "ubuntu22"],
+                runner: "native",
+                arch: "x86_64",
+                shared: "False",
+                compiler: { name: "GCC", versions: "11" },
+                profiles: { host: "default", target: "none" },
+                testmode: true  
+              }
+            - {
+                host: "self-hosted",
+                labels: ["self-hosted", "Linux", "X64", "ubuntu22"],
+                runner: "native",
+                arch: "x86_64",
+                shared: "False",
+                compiler: { name: "GCC", versions: "9" },
+                profiles: { host: "default", target: "yocto-gcc-9-glibc-x86_64-uavia-sdk-3.1.33", },
+              testmode: false
+              }
+            - {
+                host: "self-hosted",
+                labels: ["self-hosted", "Linux", "X64", "ubuntu22"],
+                runner: "native",
+                arch: "armv8",
+                shared: "False",
+                compiler: { name: "GCC", versions: "8" },
+                profiles: {
+                    host: "default", target: "yocto-gcc-8-glibc-tegra186-uavia-sdk-3.1.33-l4t-32.6.1", },
+                testmode: false
+              }
+            - {
+                host: "self-hosted",
+                labels: ["self-hosted", "Linux", "X64", "ubuntu22"],
+                runner: "native",
+                arch: "armv8",
+                shared: "False",
+                compiler: { name: "GCC", versions: "9" },
+                profiles:
+                  {
+                    host: "default",
+                    target: "yocto-gcc-9-glibc-armv8-uavia-sdk-3.1.33",
+                  },
+                  testmode: false
+              }
+            - {
+                host: "self-hosted",
+                labels: ["self-hosted", "Linux", "X64", "ubuntu22"],
+                runner: "native",
+                arch: "armv8",
+                shared: "False",
+                compiler: { name: "GCC", versions: "6" },
+                profiles:
+                  {
+                    host: "default",
+                    target: "parrot-airsdk-anafi2-classic-7.7.0",
+                  },
+                testmode: false
+              }
+            - {
+                host: "self-hosted",
+                labels: ["self-hosted", "Linux", "X64", "ubuntu22"],
+                runner: "native",
+                arch: "x86_64",
+                shared: "False",
+                compiler: { name: "GCC", versions: "11" },
+                profiles:
+                  {
+                    host: "default",
+                    target: "parrot-airsdk-anafi2-pc-7.7.0",
+                  },
+                testmode: false
+              }
+            - {
+                host: "self-hosted",
+                labels: ["self-hosted", "Linux", "X64", "ubuntu22"],
+                runner: "native",
+                arch: "armv8",
+                shared: "False",
+                compiler: { name: "GCC", versions: "9" },
+                profiles:
+                  {
+                    host: "default",
+                    target: "parrot-airsdk-anafi3-classic-8.3.0",
+                  },
+                testmode: false
+              }
+            - {
+                host: "self-hosted",
+                labels: ["self-hosted", "Linux", "X64", "ubuntu24"],
+                runner: "native",
+                arch: "x86_64",
+                shared: "False",
+                compiler: { name: "GCC", versions: "13" },
+                profiles:
+                  {
+                    host: "default",
+                    target: "parrot-airsdk-anafi3-pc-8.3.0",
+                  },
+                testmode: false
+              }
+
+
+    uses:  ./.github/workflows/common_steps.yml
+    secrets: inherit
+    with:
+      build-matrix: ${{ toJson(matrix.build) }}
+      conan_channel: 'stable'
+
+  slack:
+    runs-on: ["self-hosted", "Linux", "X64"]
+    name: Publish slack
+    needs:
+      - build
+    if: always()
+    steps:
+      - uses: craftech-io/slack-action@v1
+        with:
+          slack_webhook_url: ${{ secrets.EMBEDDED_SLACK_HOOK }}
+          status: ${{ needs.build.result }}
+

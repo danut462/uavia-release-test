@@ -1,0 +1,163 @@
+name: 'Common Steps for CKT'
+
+on:
+  workflow_call:
+    inputs:
+      build-matrix:
+        required: true
+        type: string
+      conan_channel:
+        type: string
+        default: 'dev'
+      testmode: # New input to indicate test mode
+        type: boolean
+        default: false
+    secrets:
+        AUTH_CONAN_CONFIG_TOKEN:
+            required: true
+        CONAN_PASSWORD:
+            required: true
+     
+permissions:
+    contents: write
+    pull-requests: write
+ 
+jobs:
+  common_steps:
+        strategy:
+            fail-fast: true
+            matrix:
+                build:
+                    - ${{ fromJSON(inputs.build-matrix) }}
+        runs-on: ${{ matrix.build.labels }}
+        name: ${{ matrix.build.profiles.target }} (${{ inputs.build-matrix.build.host }})
+        steps:
+            - name: Check if triggered by tag
+              id: check_tag
+              shell: bash
+              run: |
+                echo "UAVIA_EVENT_IS_TAG=${{ github.event_name == 'push' && contains(github.ref, 'refs/tags/') }}" >> $GITHUB_ENV
+            - uses: actions/checkout@v2
+              with:
+                submodules: recursive
+                fetch-depth: 0
+            - name: install build tools
+              if: matrix.build.runner == 'native'
+              shell: bash
+              run: |
+                if [[ "$(uname)" == "Linux"* ]]; then sudo apt update && sudo apt-get install -y ccache ninja-build; fi
+                if [[ "$(uname)" == "Darwin"* ]]; then brew install ccache ninja; fi
+            - uses: actions/setup-python@v2
+              with:
+                python-version: "3.9"
+            - name: get python cache directory
+              id: get_python_cache_dir
+              shell: bash
+              run: |
+                echo "::set-output name=python_cache_dir::$(pip cache dir)"
+            - uses: actions/cache@v3
+              env:
+                cache-name: cache-pip
+              with:
+                path: |
+                  ${{ steps.get_python_cache_dir.outputs.python_cache_dir }}
+                key: ${{ runner.os }}-cache-pip-${{ hashFiles('script/install.sh') }}
+                restore-keys: |
+                  ${{ runner.os }}-cache-pip-
+            - name: install conan
+              shell: bash
+              run: |
+                ./script/install.sh
+            - uses: actions/checkout@v2
+              with:
+                repository: uavia/conan-config
+                ref: main
+                path: conan-config
+                ssh-key: ${{ secrets.AUTH_CONAN_CONFIG_TOKEN }}
+            - name: configure conan
+              shell: bash
+              run: |
+                conan config init
+                conan config install conan-config
+                conan remove --locks
+            - name: get timestamp
+              if: matrix.build.host != 'self-hosted'
+              id: get_timestamp
+              shell: cmake -P {0}
+              run: |
+                string(TIMESTAMP current_date "%Y-%m-%d-%H;%M;%S" UTC)
+                message("::set-output name=timestamp::${current_date}")
+            - name: get ccache cache directory
+              if: matrix.build.host != 'self-hosted' && matrix.build.runner == 'native'
+              id: get_ccache_cache_dir
+              shell: bash
+              run: |
+                echo "::set-output name=ccache_cache_dir::$(ccache -k cache_dir)"
+            - uses: actions/cache@v3
+              if: matrix.build.host != 'self-hosted' && matrix.build.runner == 'native'
+              env:
+                cache-name: cache-ccache-data
+              with:
+                path: |
+                  ${{ steps.get_ccache_cache_dir.outputs.ccache_cache_dir }}
+                key: ${{ runner.os }}-cache-ccache-data-${{ steps.get_timestamp.outputs.timestamp }}
+                restore-keys: |
+                  ${{ runner.os }}-cache-ccache-data-
+            - name: get project name
+              id: get_project_name
+              shell: bash
+              run: |
+                echo "::set-output name=project_name::$(conan inspect . --raw name)"
+            - uses: actions/cache@v3
+              if: matrix.build.host != 'self-hosted'
+              env:
+                cache-name: cache-conan-data
+              with:
+                path: |
+                  ~/.conan/data/
+                key: ${{ runner.os }}-cache-conan-data-${{ steps.get_timestamp.outputs.timestamp }}
+                restore-keys: |
+                  ${{ runner.os }}-cache-conan-data-
+      
+            - name: Set Conan Channel
+              # Set the conan channel rule (dev, stable, testing)
+              # branch -> dev
+              # tag -> stable
+              # PR -> testing
+              shell: bash
+              run: |
+                  echo "CONAN_CHANNEL=${{ inputs.conan_channel }}" >> $GITHUB_ENV
+            - name: run
+              env:
+                CONAN_ARCHS: "${{ matrix.build.arch }}"
+                CONAN_BUILD_TYPES: Release
+                CONAN_DOCKER_ENTRY_SCRIPT: "sudo chown -R \\\\$(id -un):\\\\$(id -gn) /home/conan/.conan/data"
+                CONAN_DOCKER_RUN_OPTIONS: "-v ~/.conan/data:/home/conan/.conan/data"
+                CONAN_PASSWORD: ${{ secrets.CONAN_PASSWORD }}
+                CONAN_REMOTES: "https://jfrog.uavia.eu/artifactory/api/conan/conan-repository"
+                CONAN_REVISIONS_ENABLED: 1
+                CONAN_SHARED_OPTION_NAME: "${{ matrix.build.shared }}"
+                # Below is hack to prevent Conan CPT from setting channel to "stable" on any branch (by default uses master)...
+                CONAN_STABLE_BRANCH_PATTERN: "None"
+                CONAN_UPDATE_DEPENDENCIES: 1
+                CONAN_UPLOAD_DEPENDENCIES: "all"
+                CONAN_UPLOAD: "https://jfrog.uavia.eu/artifactory/api/conan/conan-repository"
+                CONAN_USERNAME: "conan"
+                RUN_TESTS: ${{inputs.testmode}} # Activate only in stable
+                UAVIA_CONAN_SKIP_VERSION_CHECKS: 1
+              shell: bash
+              run: |
+                if [[ "${{ matrix.build.profiles.host }}" != "none" ]]; then export CONAN_BASE_PROFILE_BUILD="${{ matrix.build.profiles.host }}"; fi
+                if [[ "${{ matrix.build.profiles.target }}" != "none" ]]; then export CONAN_BASE_PROFILE="${{ matrix.build.profiles.target }}"; fi
+                if [[ "${{ github.event_name }}" == "pull_request" ]]; then unset CONAN_UPLOAD; fi
+                if [[ "${{ github.event_name }}" == "pull_request" ]]; then export CONAN_STABLE_BRANCH_PATTERN="none"; fi
+                if [[ "${{ matrix.build.runner }}" == "docker" ]]; then export CONAN_USE_DOCKER=1; fi
+                if [[ "$(uname)" == "Linux"* ]]; then export CONAN_${{ matrix.build.compiler.name }}_VERSIONS="${{ matrix.build.compiler.versions }}"; fi
+                if [[ "$(uname)" == "Darwin"* ]]; then export CONAN_APPLE_CLANG_VERSIONS="${{ matrix.build.compiler.versions }}"; fi
+                ./script/run.sh
+                if [[ "${{ matrix.build.runner }}" == "docker" ]]; then sudo chown -R $(id -un):$(id -gn) ~/.conan/data; fi
+            - name: clean conan cache
+              shell: bash
+              run: |
+                conan remove --build --src --force "*"
+      

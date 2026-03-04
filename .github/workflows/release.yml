@@ -1,6 +1,6 @@
 name: Release-Please
 
-# This workflow triggers when you push a commit with "release:" in the message
+# This workflow runs on every push to main and updates the release PR
 on:
   push:
     branches:
@@ -14,28 +14,8 @@ permissions:
   pull-requests: write
 
 jobs:
-  # Only run if commit message starts with "release:"
-#   check-release-commit:
-#     runs-on: ubuntu-latest
-#     outputs:
-#       should_release: ${{ steps.check.outputs.should_release }}
-#     steps:
-#       - name: Check commit message
-#         id: check
-#         run: |
-#           COMMIT_MSG="${{ github.event.head_commit.message }}"
-#           if [[ "$COMMIT_MSG" =~ ^release: ]]; then
-#             echo "should_release=true" >> $GITHUB_OUTPUT
-#             echo "✅ Release commit detected: $COMMIT_MSG"
-#           else
-#             echo "should_release=false" >> $GITHUB_OUTPUT
-#             echo "⏭️  Not a release commit, skipping"
-#           fi
-
-  # Run release-please using the local reusable workflow
+  # Run release-please on every push to automatically update the release PR
   release-please:
-    # needs: check-release-commit
-    # if: needs.check-release-commit.outputs.should_release == 'true' || github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/release-please-embedded.yml
     secrets: inherit
     with:
