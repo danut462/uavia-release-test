@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.0](https://github.com/danut462/uavia-release-test/compare/1.1.1...1.2.0) (2026-03-04)
+
+
+### 🚀 Features
+
+* add new files ([d8dd145](https://github.com/danut462/uavia-release-test/commit/d8dd145c8d0903668c2db507230183b9616c05f0))
+* update files on release ([3775fe5](https://github.com/danut462/uavia-release-test/commit/3775fe56d98b8c069317f79952c8d30f53a6e57b))
+
 ## [1.1.1](https://github.com/danut462/uavia-release-test/compare/1.1.0...1.1.1) (2026-03-04)
 
 
