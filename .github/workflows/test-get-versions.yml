@@ -13,7 +13,7 @@ jobs:
     secrets:
       PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
     with:
-      repositories: "UAVIA/uavia-ckt,UAVIA/uavia-srp"
+      repositories: "UAVIA/uavia-ckt,UAVIA/srp"
 
   display-results:
     needs: test-get-versions
