@@ -1,0 +1,114 @@
+name: Update Conanfile Dependencies
+
+# Reusable workflow to update conanfile.py dependencies in a release PR
+on:
+  workflow_call:
+    inputs:
+      pr_number:
+        type: string
+        description: 'PR number to update (optional if branch is provided)'
+        required: false
+        default: ''
+      branch:
+        type: string
+        description: 'Branch name to update (optional if pr_number is provided)'
+        required: false
+        default: ''
+      version:
+        type: string
+        description: 'Release version (for {{VERSION}} placeholder)'
+        required: true
+      dependencies:
+        type: string
+        description: 'JSON object with dependency names and versions (e.g., {"ckt": "1.2.0", "srp": "1.3.0"})'
+        required: true
+    secrets:
+      PAT_TOKEN:
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-conanfile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          if [ -n "${{ inputs.pr_number }}" ]; then
+            echo "📌 Checking out PR #${{ inputs.pr_number }}"
+            PR_BRANCH=$(gh pr view "${{ inputs.pr_number }}" --repo ${{ github.repository }} --json headRefName --jq '.headRefName')
+            BRANCH="$PR_BRANCH"
+          elif [ -n "${{ inputs.branch }}" ]; then
+            echo "📌 Checking out branch ${{ inputs.branch }}"
+            BRANCH="${{ inputs.branch }}"
+          else
+            echo "❌ ERROR: Either pr_number or branch must be provided"
+            exit 1
+          fi
+
+          git clone https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }}.git .
+          git fetch origin "$BRANCH"
+          git checkout "$BRANCH"
+
+          echo "branch=$BRANCH" >> $GITHUB_ENV
+
+      - name: Update conanfile.py dependencies
+        run: |
+          if [ ! -f "conanfile.py" ]; then
+            echo "⚠️  conanfile.py not found, skipping"
+            exit 0
+          fi
+
+          echo "📝 Updating conanfile.py dependencies"
+
+          DEPENDENCIES='${{ inputs.dependencies }}'
+
+          if [ "$DEPENDENCIES" = "{}" ] || [ -z "$DEPENDENCIES" ]; then
+            echo "ℹ️  No dependencies provided, skipping"
+            exit 0
+          fi
+
+          echo "Dependencies to update: $DEPENDENCIES"
+
+          # Replace {{VERSION}} placeholder with actual release version
+          DEPENDENCIES=$(echo "$DEPENDENCIES" | sed "s/{{VERSION}}/${{ inputs.version }}/g")
+          echo "After version substitution: $DEPENDENCIES"
+
+          # Extract dependency names and versions from JSON
+          echo "$DEPENDENCIES" | jq -r 'to_entries[] | "\(.key)|\(.value)"' | while IFS='|' read -r dep_name dep_version; do
+            echo "  Checking dependency: uavia-${dep_name}"
+
+            # Check if dependency exists in conanfile.py
+            if grep -q "uavia-${dep_name}/" conanfile.py; then
+              echo "    ✅ Found uavia-${dep_name}, updating to version ${dep_version}"
+
+              # Update the dependency (replace any version with the specified one)
+              sed -i "s|uavia-${dep_name}/[^@]*@conan/stable|uavia-${dep_name}/${dep_version}@conan/stable|g" conanfile.py
+            else
+              echo "    ❌ ERROR: Dependency uavia-${dep_name} not found in conanfile.py"
+              exit 1
+            fi
+          done
+
+          echo "✅ Dependencies updated successfully"
+
+      - name: Commit and push changes
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add conanfile.py
+
+          if git diff --cached --quiet; then
+            echo "ℹ️  No changes to commit"
+          else
+            git commit -m "chore: update conanfile.py dependencies"
+            git push origin "$branch"
+            echo "✅ Conanfile updated on $branch"
+          fi

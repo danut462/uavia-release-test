@@ -1,0 +1,57 @@
+name: Get Release PR Info
+
+# Helper workflow to find and extract info from release-please PR
+on:
+  workflow_call:
+    outputs:
+      pr_number:
+        description: 'Release PR number'
+        value: ${{ jobs.get-info.outputs.pr_number }}
+      version:
+        description: 'Release version'
+        value: ${{ jobs.get-info.outputs.version }}
+    secrets:
+      PAT_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  get-info:
+    runs-on: ubuntu-latest
+    outputs:
+      pr_number: ${{ steps.find-pr.outputs.pr_number }}
+      version: ${{ steps.find-pr.outputs.version }}
+    steps:
+      - name: Find release PR and extract info
+        id: find-pr
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          echo "🔍 Looking for release PR..."
+
+          # Find the release PR created by release-please
+          PR_NUMBER=$(gh pr list --repo ${{ github.repository }} --label "autorelease: pending" --json number --jq '.[0].number')
+
+          if [ -z "$PR_NUMBER" ]; then
+            echo "⚠️  No release PR found with label 'autorelease: pending'"
+            exit 1
+          fi
+
+          echo "✅ Found release PR #$PR_NUMBER"
+
+          # Get the version from the PR title (format: "chore(main): release X.Y.Z")
+          PR_TITLE=$(gh pr view "$PR_NUMBER" --repo ${{ github.repository }} --json title --jq '.title')
+          VERSION=$(echo "$PR_TITLE" | grep -oP 'release \K[0-9]+\.[0-9]+\.[0-9]+')
+
+          if [ -z "$VERSION" ]; then
+            echo "⚠️  Could not extract version from PR title: $PR_TITLE"
+            exit 1
+          fi
+
+          echo "📦 Release version: $VERSION"
+
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT

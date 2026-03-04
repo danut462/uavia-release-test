@@ -1,0 +1,57 @@
+name: Update Version File
+
+# Reusable workflow to update version.txt in a release PR
+on:
+  workflow_call:
+    inputs:
+      pr_number:
+        type: string
+        description: 'PR number to update'
+        required: true
+      version:
+        type: string
+        description: 'Version to set'
+        required: true
+    secrets:
+      PAT_TOKEN:
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          PR_BRANCH=$(gh pr view "${{ inputs.pr_number }}" --json headRefName --jq '.headRefName')
+          git clone https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }}.git .
+          git fetch origin "$PR_BRANCH"
+          git checkout "$PR_BRANCH"
+
+      - name: Update version.txt
+        run: |
+          echo "📝 Updating version.txt to ${{ inputs.version }}"
+          echo "${{ inputs.version }}" > version.txt
+
+      - name: Commit and push changes
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add version.txt
+
+          if git diff --cached --quiet; then
+            echo "ℹ️  No changes to commit"
+          else
+            git commit -m "chore: update version.txt to ${{ inputs.version }}"
+            PR_BRANCH=$(gh pr view "${{ inputs.pr_number }}" --json headRefName --jq '.headRefName')
+            git push origin "$PR_BRANCH"
+            echo "✅ Version file updated"
+          fi

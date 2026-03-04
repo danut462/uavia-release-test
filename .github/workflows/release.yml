@@ -21,9 +21,19 @@ jobs:
     with:
       releaseType: "simple"
 
-  # Get latest versions of dependencies (only runs when releasing)
-  get-dependency-versions:
+  # === RELEASE ORCHESTRATION (only when commit starts with "release:") ===
+
+  # Step 1: Get PR info (number and version)
+  get-release-pr-info:
     needs: release-please
+    if: startsWith(github.event.head_commit.message, 'release:')
+    uses: ./.github/workflows/get-release-pr-info.yml
+    secrets:
+      PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+
+  # Step 2: Get latest dependency versions
+  get-dependency-versions:
+    needs: [release-please, get-release-pr-info]
     if: startsWith(github.event.head_commit.message, 'release:')
     uses: ./.github/workflows/get-dependency-versions.yml
     secrets:
@@ -31,14 +41,84 @@ jobs:
     with:
       repositories: "UAVIA/uavia-ckt,UAVIA/srp,UAVIA/uavia-navtools,UAVIA/uavia-protocol"
 
-  # Auto-merge the release PR if commit message starts with "release:"
-  auto-merge-release:
-    needs: [release-please, get-dependency-versions]
+  # Step 3: Modify files in the PR (add more modification workflows here as needed)
+
+  # 3a. Update version.txt
+  update-version:
+    needs: [get-release-pr-info, get-dependency-versions]
+    if: ${{ !cancelled() && needs.get-release-pr-info.result == 'success' }}
+    uses: ./.github/workflows/update-version.yml
+    secrets:
+      PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+    with:
+      pr_number: ${{ needs.get-release-pr-info.outputs.pr_number }}
+      version: ${{ needs.get-release-pr-info.outputs.version }}
+
+  # 3b. Update conanfile.py dependencies
+  update-conanfile:
+    needs: [get-release-pr-info, get-dependency-versions, update-version]
     if: ${{ !cancelled() && needs.get-dependency-versions.result == 'success' }}
+    uses: ./.github/workflows/update-conanfile.yml
+    secrets:
+      PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+    with:
+      pr_number: ${{ needs.get-release-pr-info.outputs.pr_number }}
+      version: ${{ needs.get-release-pr-info.outputs.version }}
+      dependencies: ${{ needs.get-dependency-versions.outputs.versions_json }}
+
+  # ADD MORE MODIFICATION WORKFLOWS HERE IN THE FUTURE
+  # Example:
+  # update-something-else:
+  #   needs: [get-release-pr-info, update-conanfile]
+  #   uses: ./.github/workflows/update-something-else.yml
+  #   secrets:
+  #     PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+  #   with:
+  #     pr_number: ${{ needs.get-release-pr-info.outputs.pr_number }}
+  #     version: ${{ needs.get-release-pr-info.outputs.version }}
+  #     custom_param: "value"
+
+  # Step 4: Merge the PR (after all modifications are done)
+  auto-merge-release:
+    needs: [get-release-pr-info, update-version, update-conanfile]
+    if: |
+      always() &&
+      needs.get-release-pr-info.result == 'success' &&
+      (needs.update-version.result == 'success' || needs.update-version.result == 'skipped') &&
+      (needs.update-conanfile.result == 'success' || needs.update-conanfile.result == 'skipped')
     uses: ./.github/workflows/auto-merge-release.yml
     secrets:
       PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
     with:
-      update_version_file: true
-      update_conan_dependencies: true
-      conan_dependencies: ${{ needs.get-dependency-versions.outputs.versions_json }}
+      pr_number: ${{ needs.get-release-pr-info.outputs.pr_number }}
+
+  # Step 5: Prepare "main" versions for dependencies
+  prepare-main-versions:
+    needs: [get-dependency-versions, auto-merge-release]
+    if: needs.auto-merge-release.result == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      main_versions: ${{ steps.transform.outputs.main_versions }}
+    steps:
+      - name: Transform versions to "main"
+        id: transform
+        run: |
+          # Take the versions JSON and replace all values with "main"
+          VERSIONS='${{ needs.get-dependency-versions.outputs.versions_json }}'
+
+          # Use jq to keep keys but set all values to "main"
+          MAIN_VERSIONS=$(echo "$VERSIONS" | jq 'with_entries(.value = "main")')
+
+          echo "main_versions=$MAIN_VERSIONS" >> $GITHUB_OUTPUT
+          echo "📦 Dependencies set to main: $MAIN_VERSIONS"
+
+  # Step 6: Reset dependencies back to "main" on main branch (after release is merged)
+  reset-conanfile-to-main:
+    needs: [prepare-main-versions]
+    uses: ./.github/workflows/update-conanfile.yml
+    secrets:
+      PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+    with:
+      branch: "main"
+      version: "main"
+      dependencies: ${{ needs.prepare-main-versions.outputs.main_versions }}

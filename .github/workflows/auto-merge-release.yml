@@ -1,24 +1,15 @@
 name: Auto-Merge Release
 
-# Reusable workflow to auto-merge release-please PRs
+# Generic reusable workflow to merge a release-please PR
+# All modifications should be done BEFORE calling this workflow
 on:
   workflow_call:
     inputs:
-      update_version_file:
-        type: boolean
-        description: 'Update version.txt file'
-        required: false
-        default: true
-      update_conan_dependencies:
-        type: boolean
-        description: 'Update conanfile.py dependencies'
-        required: false
-        default: true
-      conan_dependencies:
+      pr_number:
         type: string
-        description: 'JSON object with dependency names and versions (e.g., {"ckt": "1.2.0", "srp": "1.3.0"})'
+        description: 'PR number to merge (optional - will auto-detect if not provided)'
         required: false
-        default: '{}'
+        default: ''
     secrets:
       PAT_TOKEN:
         required: true
@@ -28,124 +19,45 @@ permissions:
   pull-requests: write
 
 jobs:
-  auto-merge:
+  merge-release-pr:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Extract version and update files
+      - name: Find or use provided PR number
+        id: get-pr
         env:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
-          echo "🔍 Looking for release PR..."
-
-          # Find the release PR created by release-please
-          PR_NUMBER=$(gh pr list --label "autorelease: pending" --json number --jq '.[0].number')
-
-          if [ -z "$PR_NUMBER" ]; then
-            echo "⚠️  No release PR found with label 'autorelease: pending'"
-            exit 0
-          fi
-
-          echo "✅ Found release PR #$PR_NUMBER"
-
-          # Get the version from the PR title (format: "chore(main): release X.Y.Z")
-          PR_TITLE=$(gh pr view "$PR_NUMBER" --json title --jq '.title')
-          VERSION=$(echo "$PR_TITLE" | grep -oP 'release \K[0-9]+\.[0-9]+\.[0-9]+')
-
-          if [ -z "$VERSION" ]; then
-            echo "⚠️  Could not extract version from PR title: $PR_TITLE"
-            exit 1
-          fi
-
-          echo "📦 Release version: $VERSION"
-
-          # Checkout the release PR branch
-          PR_BRANCH=$(gh pr view "$PR_NUMBER" --json headRefName --jq '.headRefName')
-          git fetch origin "$PR_BRANCH"
-          git checkout "$PR_BRANCH"
-
-          # Update version.txt if enabled
-          if [ "${{ inputs.update_version_file }}" = "true" ]; then
-            echo "📝 Updating version.txt to $VERSION"
-            echo "$VERSION" > version.txt
-            git add version.txt
-          fi
-
-          # Update conanfile.py dependencies if enabled
-          if [ "${{ inputs.update_conan_dependencies }}" = "true" ]; then
-            if [ -f "conanfile.py" ]; then
-              echo "📝 Updating conanfile.py dependencies"
-
-              # Parse the JSON dependencies input
-              DEPENDENCIES='${{ inputs.conan_dependencies }}'
-
-              if [ "$DEPENDENCIES" != "{}" ] && [ -n "$DEPENDENCIES" ]; then
-                echo "Dependencies to update: $DEPENDENCIES"
-
-                # Replace {{VERSION}} placeholder with actual release version
-                DEPENDENCIES=$(echo "$DEPENDENCIES" | sed "s/{{VERSION}}/$VERSION/g")
-                echo "After version substitution: $DEPENDENCIES"
-
-                # Extract dependency names and versions from JSON
-                # Example: {"ckt": "1.2.0", "srp": "1.3.0"}
-                FAILED=0
-                echo "$DEPENDENCIES" | jq -r 'to_entries[] | "\(.key)|\(.value)"' | while IFS='|' read -r dep_name dep_version; do
-                  echo "  Checking dependency: uavia-${dep_name}"
-
-                  # Check if dependency exists in conanfile.py
-                  if grep -q "uavia-${dep_name}/" conanfile.py; then
-                    echo "    ✅ Found uavia-${dep_name}, updating to version ${dep_version}"
-
-                    # Update the dependency (replace any version with the specified one)
-                    sed -i "s|uavia-${dep_name}/[^@]*@conan/stable|uavia-${dep_name}/${dep_version}@conan/stable|g" conanfile.py
-                  else
-                    echo "    ❌ ERROR: Dependency uavia-${dep_name} not found in conanfile.py"
-                    exit 1
-                  fi
-                done
-
-                if [ $? -ne 0 ]; then
-                  echo "❌ Failed to update dependencies"
-                  exit 1
-                fi
-
-                git add conanfile.py
-              else
-                echo "ℹ️  No specific dependencies provided, skipping conan dependencies update"
-              fi
-            else
-              echo "⚠️  conanfile.py not found, skipping conan dependencies update"
-            fi
-          fi
-
-          # Commit changes if there are any
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          if git diff --cached --quiet; then
-            echo "ℹ️  No changes to commit"
+          if [ -n "${{ inputs.pr_number }}" ]; then
+            PR_NUMBER="${{ inputs.pr_number }}"
+            echo "📌 Using provided PR number: #$PR_NUMBER"
           else
-            git commit -m "chore: update version to $VERSION"
+            echo "🔍 Auto-detecting release PR..."
+            PR_NUMBER=$(gh pr list --repo ${{ github.repository }} --label "autorelease: pending" --json number --jq '.[0].number')
 
-            # # Update branch with latest main before pushing
-            # echo "🔄 Updating branch with latest main..."
-            # git fetch origin main
-            # git merge origin/main --no-edit || {
-            #   echo "❌ Failed to merge main into PR branch"
-            #   exit 1
-            # }
+            if [ -z "$PR_NUMBER" ]; then
+              echo "⚠️  No release PR found with label 'autorelease: pending'"
+              exit 0
+            fi
 
-            git push origin "$PR_BRANCH"
-            echo "✅ Changes committed and pushed"
+            echo "✅ Found release PR #$PR_NUMBER"
           fi
 
-          echo "🔄 Auto-merging release PR..."
-          # Wait a moment for GitHub to process the push
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+
+      - name: Merge release PR
+        if: steps.get-pr.outputs.pr_number
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          echo "🔄 Auto-merging release PR #${{ steps.get-pr.outputs.pr_number }}..."
+
+          # Wait for any recent updates to be processed
           sleep 5
 
           # Merge the PR
-          gh pr merge "$PR_NUMBER" --squash --delete-branch
+          gh pr merge "${{ steps.get-pr.outputs.pr_number }}" \
+            --repo ${{ github.repository }} \
+            --squash \
+            --delete-branch
 
           echo "✅ Release PR merged successfully!"
