@@ -38,10 +38,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
+          # Clone repository first
+          git clone https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }}.git .
+
+          # Determine which branch to use
           if [ -n "${{ inputs.pr_number }}" ]; then
-            echo "📌 Checking out PR #${{ inputs.pr_number }}"
+            echo "📌 Getting branch for PR #${{ inputs.pr_number }}"
             PR_BRANCH=$(gh pr view "${{ inputs.pr_number }}" --repo ${{ github.repository }} --json headRefName --jq '.headRefName')
             BRANCH="$PR_BRANCH"
+            echo "📌 Checking out PR branch: $BRANCH"
           elif [ -n "${{ inputs.branch }}" ]; then
             echo "📌 Checking out branch ${{ inputs.branch }}"
             BRANCH="${{ inputs.branch }}"
@@ -50,7 +55,6 @@ jobs:
             exit 1
           fi
 
-          git clone https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }}.git .
           git fetch origin "$BRANCH"
           git checkout "$BRANCH"
 
