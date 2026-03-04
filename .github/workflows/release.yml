@@ -31,3 +31,4 @@ jobs:
     with:
       update_version_file: true
       update_conan_dependencies: true
+      conan_dependencies: '{"ckt": "{{VERSION}}", "srp": "{{VERSION}}"}'

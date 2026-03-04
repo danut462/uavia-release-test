@@ -11,9 +11,14 @@ on:
         default: true
       update_conan_dependencies:
         type: boolean
-        description: 'Update conanfile.py dependencies from main to release version'
+        description: 'Update conanfile.py dependencies'
         required: false
         default: true
+      conan_dependencies:
+        type: string
+        description: 'JSON object with dependency names and versions (e.g., {"ckt": "1.2.0", "srp": "1.3.0"})'
+        required: false
+        default: '{}'
     secrets:
       PAT_TOKEN:
         required: true
@@ -71,12 +76,45 @@ jobs:
           # Update conanfile.py dependencies if enabled
           if [ "${{ inputs.update_conan_dependencies }}" = "true" ]; then
             if [ -f "conanfile.py" ]; then
-              echo "📝 Updating conanfile.py dependencies from main to $VERSION"
-              sed -i "s|uavia-ckt/main@conan/stable|uavia-ckt/$VERSION@conan/stable|g" conanfile.py
-              sed -i "s|uavia-navtools/main@conan/stable|uavia-navtools/$VERSION@conan/stable|g" conanfile.py
-              sed -i "s|uavia-protocol/main@conan/stable|uavia-protocol/$VERSION@conan/stable|g" conanfile.py
-              sed -i "s|uavia-srp/main@conan/stable|uavia-srp/$VERSION@conan/stable|g" conanfile.py
-              git add conanfile.py
+              echo "📝 Updating conanfile.py dependencies"
+
+              # Parse the JSON dependencies input
+              DEPENDENCIES='${{ inputs.conan_dependencies }}'
+
+              if [ "$DEPENDENCIES" != "{}" ] && [ -n "$DEPENDENCIES" ]; then
+                echo "Dependencies to update: $DEPENDENCIES"
+
+                # Replace {{VERSION}} placeholder with actual release version
+                DEPENDENCIES=$(echo "$DEPENDENCIES" | sed "s/{{VERSION}}/$VERSION/g")
+                echo "After version substitution: $DEPENDENCIES"
+
+                # Extract dependency names and versions from JSON
+                # Example: {"ckt": "1.2.0", "srp": "1.3.0"}
+                FAILED=0
+                echo "$DEPENDENCIES" | jq -r 'to_entries[] | "\(.key)|\(.value)"' | while IFS='|' read -r dep_name dep_version; do
+                  echo "  Checking dependency: uavia-${dep_name}"
+
+                  # Check if dependency exists in conanfile.py
+                  if grep -q "uavia-${dep_name}/" conanfile.py; then
+                    echo "    ✅ Found uavia-${dep_name}, updating to version ${dep_version}"
+
+                    # Update the dependency (replace any version with the specified one)
+                    sed -i "s|uavia-${dep_name}/[^@]*@conan/stable|uavia-${dep_name}/${dep_version}@conan/stable|g" conanfile.py
+                  else
+                    echo "    ❌ ERROR: Dependency uavia-${dep_name} not found in conanfile.py"
+                    exit 1
+                  fi
+                done
+
+                if [ $? -ne 0 ]; then
+                  echo "❌ Failed to update dependencies"
+                  exit 1
+                fi
+
+                git add conanfile.py
+              else
+                echo "ℹ️  No specific dependencies provided, skipping conan dependencies update"
+              fi
             else
               echo "⚠️  conanfile.py not found, skipping conan dependencies update"
             fi
