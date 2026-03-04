@@ -47,14 +47,20 @@ jobs:
             # Get latest release tag (use releases, not all tags, as they're semantic)
             LATEST_VERSION=$(gh release list --repo "$repo" --limit 1 --json tagName --jq '.[0].tagName' 2>/dev/null || echo "")
 
-            if [ -z "$LATEST_VERSION" ]; then
+            if [ -z "$LATEST_VERSION" ] || [ "$LATEST_VERSION" = "null" ]; then
               echo "    ⚠️  No releases found, trying latest tag..."
-              LATEST_VERSION=$(gh api "repos/$repo/tags" --jq '.[0].name' 2>/dev/null || echo "")
-            fi
+              LATEST_VERSION=$(gh api "repos/$repo/tags" --jq '.[0].name' 2>&1)
 
-            if [ -z "$LATEST_VERSION" ]; then
-              echo "    ❌ ERROR: Could not find version for $repo"
-              exit 1
+              # Check if the result is a valid version (not an error message)
+              if echo "$LATEST_VERSION" | grep -q "message.*Not Found"; then
+                echo "    ❌ ERROR: Repository $repo not found or not accessible"
+                exit 1
+              fi
+
+              if [ -z "$LATEST_VERSION" ] || [ "$LATEST_VERSION" = "null" ]; then
+                echo "    ❌ ERROR: Could not find any version for $repo"
+                exit 1
+              fi
             fi
 
             # Remove 'v' prefix if present
