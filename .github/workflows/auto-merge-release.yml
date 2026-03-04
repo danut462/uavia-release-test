@@ -1,0 +1,101 @@
+name: Auto-Merge Release
+
+# Reusable workflow to auto-merge release-please PRs
+on:
+  workflow_call:
+    inputs:
+      update_version_file:
+        type: boolean
+        description: 'Update version.txt file'
+        required: false
+        default: true
+      update_conan_dependencies:
+        type: boolean
+        description: 'Update conanfile.py dependencies from main to release version'
+        required: false
+        default: true
+    secrets:
+      PAT_TOKEN:
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Extract version and update files
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          echo "🔍 Looking for release PR..."
+
+          # Find the release PR created by release-please
+          PR_NUMBER=$(gh pr list --label "autorelease: pending" --json number --jq '.[0].number')
+
+          if [ -z "$PR_NUMBER" ]; then
+            echo "⚠️  No release PR found with label 'autorelease: pending'"
+            exit 0
+          fi
+
+          echo "✅ Found release PR #$PR_NUMBER"
+
+          # Get the version from the PR title (format: "chore(main): release X.Y.Z")
+          PR_TITLE=$(gh pr view "$PR_NUMBER" --json title --jq '.title')
+          VERSION=$(echo "$PR_TITLE" | grep -oP 'release \K[0-9]+\.[0-9]+\.[0-9]+')
+
+          if [ -z "$VERSION" ]; then
+            echo "⚠️  Could not extract version from PR title: $PR_TITLE"
+            exit 1
+          fi
+
+          echo "📦 Release version: $VERSION"
+
+          # Checkout the release PR branch
+          PR_BRANCH=$(gh pr view "$PR_NUMBER" --json headRefName --jq '.headRefName')
+          git fetch origin "$PR_BRANCH"
+          git checkout "$PR_BRANCH"
+
+          # Update version.txt if enabled
+          if [ "${{ inputs.update_version_file }}" = "true" ]; then
+            echo "📝 Updating version.txt to $VERSION"
+            echo "$VERSION" > version.txt
+            git add version.txt
+          fi
+
+          # Update conanfile.py dependencies if enabled
+          if [ "${{ inputs.update_conan_dependencies }}" = "true" ]; then
+            if [ -f "conanfile.py" ]; then
+              echo "📝 Updating conanfile.py dependencies from main to $VERSION"
+              sed -i "s|uavia-ckt/main@conan/stable|uavia-ckt/$VERSION@conan/stable|g" conanfile.py
+              sed -i "s|uavia-navtools/main@conan/stable|uavia-navtools/$VERSION@conan/stable|g" conanfile.py
+              sed -i "s|uavia-protocol/main@conan/stable|uavia-protocol/$VERSION@conan/stable|g" conanfile.py
+              sed -i "s|uavia-srp/main@conan/stable|uavia-srp/$VERSION@conan/stable|g" conanfile.py
+              git add conanfile.py
+            else
+              echo "⚠️  conanfile.py not found, skipping conan dependencies update"
+            fi
+          fi
+
+          # Commit changes if there are any
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if git diff --cached --quiet; then
+            echo "ℹ️  No changes to commit"
+          else
+            git commit -m "chore: update version to $VERSION"
+            git push origin "$PR_BRANCH"
+            echo "✅ Changes committed and pushed"
+          fi
+
+          echo "🔄 Auto-merging release PR..."
+          # Merge the PR
+          gh pr merge "$PR_NUMBER" --squash --delete-branch
+
+          echo "✅ Release PR merged successfully!"
