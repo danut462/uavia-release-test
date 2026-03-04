@@ -93,8 +93,8 @@ class UaviaAutopilotGenericInterface(ConanFile):
             "nlohmann_json/3.9.1",
             f"gtest/{self.options.gtest_version}",
             "uavia-ckt/2.12.1@conan/stable",
-            "uavia-navtools/1.2.0@conan/stable",
-            "uavia-protocol/1.2.0@conan/stable",
+            "uavia-navtools/1.6.3@conan/stable",
+            "uavia-protocol/2.7.9@conan/stable",
             "uavia-srp/0.74.0@conan/stable"
         ] # main dependencies
         for autopilot in self.autopilots:
