@@ -92,10 +92,10 @@ class UaviaAutopilotGenericInterface(ConanFile):
             "docopt.cpp/0.6.3",
             "nlohmann_json/3.9.1",
             f"gtest/{self.options.gtest_version}",
-            "uavia-ckt/1.3.23@conan/stable",
-            "uavia-navtools/1.3.23@conan/stable",
-            "uavia-protocol/1.3.23@conan/stable",
-            "uavia-srp/1.3.23@conan/stable"
+            "uavia-ckt/2.12.1@conan/stable",
+            "uavia-navtools/1.6.3@conan/stable",
+            "uavia-protocol/2.7.9@conan/stable",
+            "uavia-srp/0.74.0@conan/stable"
         ] # main dependencies
         for autopilot in self.autopilots:
             deps.extend(autopilot.get_build_dependencies()) # extend with autopilot build dependencies
