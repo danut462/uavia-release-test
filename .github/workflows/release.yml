@@ -106,8 +106,8 @@ jobs:
           # Take the versions JSON and replace all values with "main"
           VERSIONS='${{ needs.get-dependency-versions.outputs.versions_json }}'
 
-          # Use jq to keep keys but set all values to "main"
-          MAIN_VERSIONS=$(echo "$VERSIONS" | jq 'with_entries(.value = "main")')
+          # Use jq -c to output compact (single-line) JSON for GITHUB_OUTPUT
+          MAIN_VERSIONS=$(echo "$VERSIONS" | jq -c 'with_entries(.value = "main")')
 
           echo "main_versions=$MAIN_VERSIONS" >> $GITHUB_OUTPUT
           echo "📦 Dependencies set to main: $MAIN_VERSIONS"
