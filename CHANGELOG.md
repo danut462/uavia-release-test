@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.1.0](https://github.com/danut462/uavia-release-test/compare/2.0.2...2.1.0) (2026-03-04)
+
+
+### 🚀 Features
+
+* coco ([2cb067b](https://github.com/danut462/uavia-release-test/commit/2cb067bc08ebef4b3b14a50170c4d5e45cf00481))
+* nouvelles features automerge ([1ae0dcb](https://github.com/danut462/uavia-release-test/commit/1ae0dcbdbbae8480ed98ea46d442d380c8927c9c))
+
 ## [2.0.2](https://github.com/danut462/uavia-release-test/compare/2.0.1...2.0.2) (2026-03-04)
 
 
