@@ -128,11 +128,23 @@ jobs:
             echo "ℹ️  No changes to commit"
           else
             git commit -m "chore: update version to $VERSION"
+
+            # Update branch with latest main before pushing
+            echo "🔄 Updating branch with latest main..."
+            git fetch origin main
+            git merge origin/main --no-edit || {
+              echo "❌ Failed to merge main into PR branch"
+              exit 1
+            }
+
             git push origin "$PR_BRANCH"
             echo "✅ Changes committed and pushed"
           fi
 
           echo "🔄 Auto-merging release PR..."
+          # Wait a moment for GitHub to process the push
+          sleep 5
+
           # Merge the PR
           gh pr merge "$PR_NUMBER" --squash --delete-branch
 
