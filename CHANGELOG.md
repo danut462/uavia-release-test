@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/danut462/uavia-release-test/compare/1.2.0...1.3.0) (2026-03-04)
+
+
+### 🚀 Features
+
+* added dependancy input ([4ef1d3f](https://github.com/danut462/uavia-release-test/commit/4ef1d3f57ca725523970eac54ab5a9ae957c1ac7))
+
 ## [1.2.0](https://github.com/danut462/uavia-release-test/compare/1.1.1...1.2.0) (2026-03-04)
 
 
