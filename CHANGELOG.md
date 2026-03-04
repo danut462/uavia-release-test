@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.1](https://github.com/danut462/uavia-release-test/compare/2.0.0...2.0.1) (2026-03-04)
+
+
+### 🐞 Bug Fixes
+
+* putting main back on main ([da0fe72](https://github.com/danut462/uavia-release-test/commit/da0fe728777d8fb06d389f817cd02282b6c4e9d5))
+
 ## [2.0.0](https://github.com/danut462/uavia-release-test/compare/1.4.2...2.0.0) (2026-03-04)
 
 
