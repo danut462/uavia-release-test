@@ -1,0 +1,41 @@
+name: Release-Please
+on:
+  workflow_call:
+    inputs:
+      releaseType:
+        type: string
+        description: 'Type of Release Please'
+        required: false
+        default: 'simple'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate token
+        id: generate_token
+        uses: tibdex/github-app-token@b62528385c34dbc9f38e5f4225ac829252d1ea92
+        with:
+          app_id: ${{ secrets.GH_ACTION_APP_ID }}
+          private_key: ${{ secrets.GH_ACTION_APP_KEY }}
+
+      - uses: google-github-actions/release-please-action@v3
+        with:
+          release-type: ${{ inputs.releaseType }}
+          package-name: ${{ github.event.repository.name }}
+          token: ${{ steps.generate_token.outputs.token }}
+          default-branch: main
+          bump-minor-pre-major: true
+          include-v-in-tag: false
+          pull-request-header:
+            "⭐ I have created a release ⭐"
+          changelog-types: |
+            [
+              {"type":"feat","section":"🚀 Features","hidden":false},
+              {"type":"fix","section":"🐞 Bug Fixes","hidden":false},
+              {"type":"refactor","section":"🛠 Refactors and code quality improvements","hidden":false}
+            ]
