@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.0.0](https://github.com/danut462/uavia-release-test/compare/1.4.2...2.0.0) (2026-03-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* big updates
+
+### 🚀 Features
+
+* big updates ([99885cc](https://github.com/danut462/uavia-release-test/commit/99885cc1f0d50fba360c061acf5c8a2a2f52416f))
+
+
+### 🐞 Bug Fixes
+
+* eee ([7563511](https://github.com/danut462/uavia-release-test/commit/756351123bbd04f24631122e371095e01bafa17f))
+* eee ([22464f4](https://github.com/danut462/uavia-release-test/commit/22464f4b456ba2f9dffb945facf54a029dce1d9f))
+
 ## [1.4.2](https://github.com/danut462/uavia-release-test/compare/1.4.1...1.4.2) (2026-03-04)
 
 
