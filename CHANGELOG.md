@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.4.0](https://github.com/danut462/uavia-release-test/compare/1.3.0...1.4.0) (2026-03-04)
+
+
+### 🚀 Features
+
+* dependacy test ([91d2c78](https://github.com/danut462/uavia-release-test/commit/91d2c784434a54ae7f1234554fd33266c99776b7))
+
+
+### 🐞 Bug Fixes
+
+* test ([5b84e13](https://github.com/danut462/uavia-release-test/commit/5b84e134cfdf87c51d08f45fd589d44e8cfd12d4))
+* update branch before merging ([9bf5c06](https://github.com/danut462/uavia-release-test/commit/9bf5c060aea481191b02247c66f3fb99b63c5623))
+
 ## [1.3.0](https://github.com/danut462/uavia-release-test/compare/1.2.0...1.3.0) (2026-03-04)
 
 
