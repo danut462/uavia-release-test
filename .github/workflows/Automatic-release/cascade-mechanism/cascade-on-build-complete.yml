@@ -1,0 +1,28 @@
+name: Cascade on Build Complete
+
+# Triggers when the "Build on Tag" workflow completes
+# Uses modular workflows for cascade detection and triggering
+on:
+  workflow_run:
+    workflows: ["Build on Tag"]  # Must match build-on-tag.yml name exactly
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  # Step 1: Detect cascade flag from commit message
+  detect-cascade:
+    if: github.event.workflow_run.conclusion == 'success'
+    uses: ./.github/workflows/detect-cascade.yml
+    with:
+      commit_sha: ${{ github.event.workflow_run.head_sha }}
+
+  # Step 2: Launch cascade if flag detected
+  launch-cascade:
+    needs: [detect-cascade]
+    uses: ./.github/workflows/launch-cascade.yml
+    secrets:
+      PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+    with:
+      trigger_cascade: ${{ needs.detect-cascade.outputs.cascade == 'true' }}

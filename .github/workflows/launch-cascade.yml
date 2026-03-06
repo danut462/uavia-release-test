@@ -1,0 +1,37 @@
+name: Launch Cascade
+
+# Reusable workflow to trigger next repository's release
+on:
+  workflow_call:
+    inputs:
+      trigger_cascade:
+        description: 'Whether to trigger cascade'
+        required: true
+        type: boolean
+    secrets:
+      PAT_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  trigger:
+    if: inputs.trigger_cascade == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger next repository release
+        run: |
+          echo "🚀 Triggering cascade to next repository..."
+
+          # TODO: Update next-repository name when ready
+          # Uncomment and modify the following lines:
+          # gh workflow run release.yml \
+          #   --repo UAVIA/next-repository \
+          #   -f commit_message="release: cascaded from ${{ github.repository }}"
+
+          echo "⚠️  Cascade trigger is disabled"
+          echo "   To enable: Edit .github/workflows/launch-cascade.yml"
+          echo "   Uncomment the gh workflow run command and set the correct repository"
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
