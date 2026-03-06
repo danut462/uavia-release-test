@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.3.0](https://github.com/danut462/uavia-release-test/compare/2.2.1...2.3.0) (2026-03-06)
+
+
+### 🚀 Features
+
+* added cascade ([39cfbb2](https://github.com/danut462/uavia-release-test/commit/39cfbb27d3a0e112edc2a2e0ce83de34efb594fe))
+
+
+### 🐞 Bug Fixes
+
+* revert ([4f22dd6](https://github.com/danut462/uavia-release-test/commit/4f22dd6fa39d1d1151b17e5a03003494ad583afa))
+* test ([7cc7bf9](https://github.com/danut462/uavia-release-test/commit/7cc7bf958060d4ced769b5857609fd75471e6e50))
+
 ## [2.2.1](https://github.com/danut462/uavia-release-test/compare/2.2.0...2.2.1) (2026-03-06)
 
 
