@@ -144,7 +144,8 @@ jobs:
     needs: [get-dependency-versions, auto-merge-release]
     if: |
       always() &&
-      needs.auto-merge-release.result == 'success'
+      needs.auto-merge-release.result == 'success' &&
+      needs.get-dependency-versions.result == 'success'
     runs-on: ubuntu-latest
     outputs:
       main_versions: ${{ steps.transform.outputs.main_versions }}
