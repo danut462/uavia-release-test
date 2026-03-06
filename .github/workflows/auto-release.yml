@@ -1,4 +1,4 @@
-name: Auto-Release
+name: release
 
 # This is a reusable workflow that handles the release process
 # It is called by the release.yml workflow

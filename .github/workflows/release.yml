@@ -1,4 +1,4 @@
-name: Release Workflow
+name: Automatic-Release
 
 # This workflow runs on every push to main and triggers the auto-release process
 on:
