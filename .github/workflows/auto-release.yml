@@ -42,10 +42,26 @@ jobs:
     uses: ./.github/workflows/get-release-pr-info.yml
     secrets:
       PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+  
+  release-without-changes:
+      needs: [release-please, get-release-pr-info]
+      if: |
+        always() &&
+        inputs.release == true &&
+        inputs.cascade == true &&
+        needs.get-release-pr-info.result == 'success' &&
+        needs.get-release-pr-info.outputs.pr_number == '-1' &&
+        needs.get-release-pr-info.outputs.version == '-1'
+      uses: ./.github/workflows/launch-cascade.yml
+      secrets:
+        PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+      with:
+        trigger_cascade: ${{inputs.cascade}}
 
   # Step 2: Get latest dependency versions
   get-dependency-versions:
     needs: [release-please, get-release-pr-info]
+    # if: needs.get-release-pr-info.outputs.pr_number == -1
     uses: ./.github/workflows/get-dependency-versions.yml
     secrets:
       PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
