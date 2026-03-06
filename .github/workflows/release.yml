@@ -1,22 +1,164 @@
-name: Release
+name: Auto-Release
 
-# Main release workflow - triggered by push to main
+# This workflow runs on every push to main and updates the release PR
 on:
   push:
     branches:
       - main
+  # You can also manually trigger this workflow from GitHub Actions tab
   workflow_dispatch:
 
+# Required permissions for release-please to create releases and PRs
 permissions:
   contents: write
   pull-requests: write
 
 jobs:
-  # Call auto-release workflow with specific update jobs
-  auto-release:
-    uses: ./.github/workflows/auto-release.yml
+  # Run release-please on every push to automatically update the release PR
+  release-please:
+    uses: ./.github/workflows/release-please-embedded.yml
+    secrets: inherit
+    with:
+      releaseType: "simple"
+
+  # === RELEASE ORCHESTRATION (only when commit starts with "release:") ===
+
+  # Step 1: Get PR info (number and version)
+  get-release-pr-info:
+    needs: release-please
+    if: startsWith(github.event.head_commit.message, 'release:')
+    uses: ./.github/workflows/get-release-pr-info.yml
+    secrets:
+      PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+
+  # Step 2: Get latest dependency versions
+  get-dependency-versions:
+    needs: [release-please, get-release-pr-info]
+    if: startsWith(github.event.head_commit.message, 'release:')
+    uses: ./.github/workflows/get-dependency-versions.yml
     secrets:
       PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
     with:
-      # Comma-separated list of specific workflows to run
-      specific_jobs: "update-version.yml"
+      repositories: "UAVIA/uavia-ckt,UAVIA/srp,UAVIA/uavia-navtools,UAVIA/uavia-protocol"
+
+  # Step 3: Modify files in the PR (add more modification workflows here as needed)
+
+  # 3a. Update version.txt
+  update-version:
+    needs: [get-release-pr-info, get-dependency-versions]
+    if: ${{ !cancelled() && needs.get-release-pr-info.result == 'success' }}
+    uses: ./.github/workflows/update-version.yml
+    secrets:
+      PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+    with:
+      pr_number: ${{ needs.get-release-pr-info.outputs.pr_number }}
+      version: ${{ needs.get-release-pr-info.outputs.version }}
+
+  # 3b. Update conanfile.py dependencies
+  update-conanfile:
+    needs: [get-release-pr-info, get-dependency-versions, update-version]
+    if: ${{ !cancelled() && needs.get-dependency-versions.result == 'success' }}
+    uses: ./.github/workflows/update-conanfile.yml
+    secrets:
+      PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+    with:
+      pr_number: ${{ needs.get-release-pr-info.outputs.pr_number }}
+      version: ${{ needs.get-release-pr-info.outputs.version }}
+      dependencies: ${{ needs.get-dependency-versions.outputs.versions_json }}
+
+  # 3c. Add cascade marker to PR branch if cascade flag detected
+  add-cascade-marker:
+    needs: [get-release-pr-info, update-conanfile]
+    if: contains(github.event.head_commit.message, '[cascade]')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+          fetch-depth: 0
+
+      - name: Add cascade marker commit to PR branch
+        run: |
+          PR_NUMBER="${{ needs.get-release-pr-info.outputs.pr_number }}"
+
+          # Get PR branch name
+          PR_BRANCH=$(gh pr view "$PR_NUMBER" --json headRefName --jq '.headRefName')
+
+          echo "📍 Adding cascade marker to PR branch: $PR_BRANCH"
+
+          # Fetch and checkout PR branch
+          git fetch origin "$PR_BRANCH"
+          git checkout "$PR_BRANCH"
+
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Add empty commit with cascade marker
+          git commit --allow-empty -m "[cascade]"
+
+          # Push to PR branch
+          git push origin "$PR_BRANCH"
+
+          echo "✅ Cascade marker added to PR"
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+
+  # ADD MORE MODIFICATION WORKFLOWS HERE IN THE FUTURE
+  # Example:
+  # update-something-else:
+  #   needs: [get-release-pr-info, update-conanfile]
+  #   uses: ./.github/workflows/update-something-else.yml
+  #   secrets:
+  #     PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+  #   with:
+  #     pr_number: ${{ needs.get-release-pr-info.outputs.pr_number }}
+  #     version: ${{ needs.get-release-pr-info.outputs.version }}
+  #     custom_param: "value"
+
+  # Step 4: Merge the PR (after all modifications are done)
+  auto-merge-release:
+    needs: [get-release-pr-info, update-version, update-conanfile, add-cascade-marker]
+    if: |
+      always() &&
+      needs.get-release-pr-info.result == 'success' &&
+      (needs.update-version.result == 'success' || needs.update-version.result == 'skipped') &&
+      (needs.update-conanfile.result == 'success' || needs.update-conanfile.result == 'skipped') &&
+      (needs.add-cascade-marker.result == 'success' || needs.add-cascade-marker.result == 'skipped')
+    uses: ./.github/workflows/auto-merge-release.yml
+    secrets:
+      PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+    with:
+      pr_number: ${{ needs.get-release-pr-info.outputs.pr_number }}
+
+  # Step 5: Prepare "main" versions for dependencies
+  prepare-main-versions:
+    needs: [get-dependency-versions, auto-merge-release]
+    if: needs.auto-merge-release.result == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      main_versions: ${{ steps.transform.outputs.main_versions }}
+    steps:
+      - name: Transform versions to "main"
+        id: transform
+        run: |
+          # Take the versions JSON and replace all values with "main"
+          VERSIONS='${{ needs.get-dependency-versions.outputs.versions_json }}'
+
+          # Use jq -c to output compact (single-line) JSON for GITHUB_OUTPUT
+          MAIN_VERSIONS=$(echo "$VERSIONS" | jq -c 'with_entries(.value = "main")')
+
+          echo "main_versions=$MAIN_VERSIONS" >> $GITHUB_OUTPUT
+          echo "📦 Dependencies set to main: $MAIN_VERSIONS"
+
+  # Step 6: Reset dependencies back to "main" on main branch (after release is merged)
+  reset-conanfile-to-main:
+    needs: [prepare-main-versions]
+    uses: ./.github/workflows/update-conanfile.yml
+    secrets:
+      PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+    with:
+      branch: "main"
+      version: "main"
+      dependencies: ${{ needs.prepare-main-versions.outputs.main_versions }}
