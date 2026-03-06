@@ -24,8 +24,6 @@ jobs:
           default-branch: main
           bump-minor-pre-major: true
           include-v-in-tag: false
-          annotated-tags: true
-          test-test: true
           pull-request-header: "⭐ I have created a release ⭐"
           changelog-types: |
             [
