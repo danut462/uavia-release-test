@@ -61,7 +61,11 @@ jobs:
   # Step 2: Get latest dependency versions
   get-dependency-versions:
     needs: [release-please, get-release-pr-info]
-    # if: needs.get-release-pr-info.outputs.pr_number == -1
+    if: |
+        always() &&
+        needs.get-release-pr-info.result == 'success' &&g
+        needs.get-release-pr-info.outputs.pr_number =! '-1' &&
+        needs.get-release-pr-info.outputs.version =! '-1'
     uses: ./.github/workflows/get-dependency-versions.yml
     secrets:
       PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
@@ -73,7 +77,7 @@ jobs:
   # 3a. Update version.txt
   update-version:
     needs: [get-release-pr-info, get-dependency-versions]
-    if: ${{ !cancelled() && needs.get-release-pr-info.result == 'success' }}
+    if: ${{ !cancelled() && needs.get-release-pr-info.result == 'success'}}
     uses: ./.github/workflows/update-version.yml
     secrets:
       PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
