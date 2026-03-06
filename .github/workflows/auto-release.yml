@@ -10,6 +10,11 @@ on:
         required: false
         type: boolean
         default: false
+      release:
+        description: 'Whether to release or not'
+        required: true
+        type: boolean
+
 
 # Required permissions for release-please to create releases and PRs
 permissions:
@@ -29,6 +34,7 @@ jobs:
   # Step 1: Get PR info (number and version)
   get-release-pr-info:
     needs: release-please
+    if: startsWith(inputs.release == true)
     uses: ./.github/workflows/get-release-pr-info.yml
     secrets:
       PAT_TOKEN: ${{ secrets.PAT_TOKEN }}

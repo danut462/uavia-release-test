@@ -16,7 +16,6 @@ permissions:
 jobs:
   # Detect if cascade flag is present in commit message
   detect-cascade:
-    if: startsWith(github.event.head_commit.message, 'release:')
     uses: ./.github/workflows/detect-cascade.yml
     with:
       commit_sha: ${{ github.sha }}
@@ -28,3 +27,4 @@ jobs:
     secrets: inherit
     with:
       cascade: ${{ fromJSON(needs.detect-cascade.outputs.cascade) }}
+      release: ${{ startsWith(github.event.head_commit.message, 'release:')}}
