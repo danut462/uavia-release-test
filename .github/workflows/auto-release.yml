@@ -29,7 +29,6 @@ jobs:
   # Step 1: Get PR info (number and version)
   get-release-pr-info:
     needs: release-please
-    if: startsWith(github.event.head_commit.message, 'release:')
     uses: ./.github/workflows/get-release-pr-info.yml
     secrets:
       PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
@@ -37,7 +36,6 @@ jobs:
   # Step 2: Get latest dependency versions
   get-dependency-versions:
     needs: [release-please, get-release-pr-info]
-    if: startsWith(github.event.head_commit.message, 'release:')
     uses: ./.github/workflows/get-dependency-versions.yml
     secrets:
       PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
