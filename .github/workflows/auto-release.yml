@@ -63,9 +63,9 @@ jobs:
     needs: [release-please, get-release-pr-info]
     if: |
         always() &&
-        needs.get-release-pr-info.result == 'success' &&g
-        needs.get-release-pr-info.outputs.pr_number =! '-1' &&
-        needs.get-release-pr-info.outputs.version =! '-1'
+        needs.get-release-pr-info.result == 'success' &&
+        needs.get-release-pr-info.outputs.pr_number != '-1' &&
+        needs.get-release-pr-info.outputs.version != '-1'
     uses: ./.github/workflows/get-dependency-versions.yml
     secrets:
       PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
