@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.1](https://github.com/danut462/uavia-release-test/compare/2.3.0...2.3.1) (2026-03-06)
+
+
+### 🐞 Bug Fixes
+
+* eeazeaze ([4aa9dc9](https://github.com/danut462/uavia-release-test/commit/4aa9dc90fe25de8c1562a856c02f881fb382355a))
+
 ## [2.3.0](https://github.com/danut462/uavia-release-test/compare/2.2.1...2.3.0) (2026-03-06)
 
 
