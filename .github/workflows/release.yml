@@ -23,6 +23,9 @@ jobs:
   # Call the auto-release workflow to handle the release process
   auto-release:
     needs: detect-cascade
+    if: |
+      always() && 
+      needs.detect-cascade.result == 'success'
     uses: ./.github/workflows/auto-release.yml
     secrets: inherit
     with:
