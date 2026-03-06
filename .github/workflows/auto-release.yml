@@ -78,7 +78,7 @@ jobs:
     if: |
       startsWith(github.event.head_commit.message, 'release:') &&
       needs.check-no-pr-cascade.outputs.no_pr == 'false'
-    uses: ./.github/workflows/get-release-pr-info.yml
+    uses: ./.github/workflows/Automatic-release/detect-version/get-release-pr-info.yml
     secrets:
       PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
 
@@ -88,19 +88,19 @@ jobs:
     if: |
       startsWith(github.event.head_commit.message, 'release:') &&
       needs.check-no-pr-cascade.outputs.no_pr == 'false'
-    uses: ./.github/workflows/get-dependency-versions.yml
+    uses: ./.github/workflows/Automatic-release/detect-version/get-dependency-versions.yml
     secrets:
       PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
     with:
       repositories: "UAVIA/uavia-ckt,UAVIA/srp,UAVIA/uavia-navtools,UAVIA/uavia-protocol"
 
   # Step 3: Modify files in the PR (add more modification workflows here as needed)
-
+    
   # 3. Update conanfile.py dependencies
   update-conanfile:
     needs: [get-release-pr-info, get-dependency-versions]
     if: ${{ !cancelled() && needs.get-dependency-versions.result == 'success' }}
-    uses: ./.github/workflows/update-conanfile.yml
+    uses: ./.github/workflows/Automatic-release/update-files/update-conanfile.yml
     secrets:
       PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
     with:
@@ -272,7 +272,7 @@ jobs:
       (needs.specific-job-3.result == 'success' || needs.specific-job-3.result == 'skipped') &&
       (needs.specific-job-4.result == 'success' || needs.specific-job-4.result == 'skipped') &&
       (needs.specific-job-5.result == 'success' || needs.specific-job-5.result == 'skipped')
-    uses: ./.github/workflows/auto-merge-pr.yml
+    uses: ./.github/workflows/Automatic-release/auto-merge-pr.yml
     secrets:
       PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
     with:
@@ -301,7 +301,7 @@ jobs:
   # Step 6: Reset dependencies back to "main" on main branch (after release is merged)
   reset-conanfile-to-main:
     needs: [prepare-main-versions]
-    uses: ./.github/workflows/update-conanfile.yml
+    uses: ./.github/workflows/Automatic-release/update-files/update-conanfile.yml
     secrets:
       PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
     with:
