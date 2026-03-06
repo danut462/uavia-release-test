@@ -20,5 +20,3 @@ jobs:
     with:
       # Comma-separated list of specific workflows to run
       specific_jobs: "update-version.yml"
-      # Pass commit message for cascade and release detection
-      commit_message: ${{ github.event.head_commit.message }}
