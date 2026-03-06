@@ -10,47 +10,19 @@ permissions:
   contents: read
 
 jobs:
-  check-cascade:
+  # Detect if cascade flag is present
+  detect-cascade:
     # Only cascade if build succeeded
     if: github.event.workflow_run.conclusion == 'success'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
-          fetch-depth: 0
+    uses: ./.github/workflows/detect-cascade.yml
+    with:
+      commit_sha: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Detect cascade flag from commit message
-        id: cascade
-        run: |
-          # Get the commit that triggered the build
-          COMMIT_SHA="${{ github.event.workflow_run.head_sha }}"
-          COMMIT_MSG=$(git log -1 --format=%B "$COMMIT_SHA")
-
-          echo "📝 Commit message: $COMMIT_MSG"
-
-          # Check for cascade marker
-          if echo "$COMMIT_MSG" | grep -q '\[cascade\]'; then
-            echo "🔗 Cascade flag detected!"
-            echo "cascade=true" >> $GITHUB_OUTPUT
-          else
-            echo "⏹️  No cascade flag found"
-            echo "cascade=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Trigger next repository release
-        if: steps.cascade.outputs.cascade == 'true'
-        run: |
-          echo "🚀 Triggering cascade to next repository..."
-
-          # TODO: Update next-repository name when ready
-          # gh workflow run release.yml \
-          #   --repo UAVIA/next-repository \
-          #   -f commit_message="release: cascaded from ${{ github.repository }}"
-
-          echo "⚠️  Cascade trigger disabled - update repository name in workflow"
-          echo "   Edit .github/workflows/cascade-on-build-complete.yml"
-          echo "   Uncomment and set the correct next repository name"
-        env:
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+  # Launch cascade to next repository
+  launch-cascade:
+    needs: detect-cascade
+    uses: ./.github/workflows/launch-cascade.yml
+    secrets:
+      PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+    with:
+      trigger_cascade: ${{ fromJSON(needs.detect-cascade.outputs.cascade) }}

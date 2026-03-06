@@ -14,7 +14,16 @@ permissions:
   pull-requests: write
 
 jobs:
+  # Detect if cascade flag is present in commit message
+  detect-cascade:
+    uses: ./.github/workflows/detect-cascade.yml
+    with:
+      commit_sha: ${{ github.sha }}
+
   # Call the auto-release workflow to handle the release process
   auto-release:
+    needs: detect-cascade
     uses: ./.github/workflows/auto-release.yml
     secrets: inherit
+    with:
+      cascade: ${{ fromJSON(needs.detect-cascade.outputs.cascade) }}

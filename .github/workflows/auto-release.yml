@@ -4,6 +4,12 @@ name: Auto-Release
 # It is called by the release.yml workflow
 on:
   workflow_call:
+    inputs:
+      cascade:
+        description: 'Whether to add cascade marker to the release PR'
+        required: false
+        type: boolean
+        default: false
 
 # Required permissions for release-please to create releases and PRs
 permissions:
@@ -63,10 +69,10 @@ jobs:
       version: ${{ needs.get-release-pr-info.outputs.version }}
       dependencies: ${{ needs.get-dependency-versions.outputs.versions_json }}
 
-  # 3c. Add cascade marker to PR branch if cascade flag detected
+  # 3c. Add cascade marker to PR branch if cascade flag is true
   add-cascade-marker:
     needs: [get-release-pr-info, update-conanfile]
-    if: contains(github.event.head_commit.message, '[cascade]')
+    if: inputs.cascade == true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
