@@ -1,0 +1,29 @@
+name: Build on Tag
+
+# Trigger when a tag is pushed
+on:
+  push:
+    tags:
+      - '*'  # Triggers on any tag
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Show tag information
+        run: |
+          echo "🏷️  Tag created: ${GITHUB_REF#refs/tags/}"
+          echo "📦 Starting build process..."
+
+      - name: Simulate build (10s)
+        run: |
+          echo "⚙️  Building..."
+          sleep 10
+          echo "✅ Build completed successfully!"
+
+      - name: Build summary
+        run: |
+          echo "🎉 Tag ${GITHUB_REF#refs/tags/} built and ready!"
