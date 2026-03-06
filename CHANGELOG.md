@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.1](https://github.com/danut462/uavia-release-test/compare/2.4.0...2.4.1) (2026-03-06)
+
+
+### 🐞 Bug Fixes
+
+* change name ([8a9a03f](https://github.com/danut462/uavia-release-test/commit/8a9a03ff5d652d00605c1547f39afa3f218a9328))
+
 ## [2.4.0](https://github.com/danut462/uavia-release-test/compare/2.3.1...2.4.0) (2026-03-06)
 
 
