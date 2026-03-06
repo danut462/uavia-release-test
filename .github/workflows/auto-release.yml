@@ -77,7 +77,12 @@ jobs:
   # 3a. Update version.txt
   update-version:
     needs: [get-release-pr-info, get-dependency-versions]
-    if: ${{ !cancelled() && needs.get-release-pr-info.result == 'success'}}
+    if: | 
+        always() && 
+        !cancelled() &&
+        needs.get-release-pr-info.result == 'success' &&
+        needs.get-release-pr-info.outputs.pr_number != '-1' &&
+        needs.get-release-pr-info.outputs.version != '-1'
     uses: ./.github/workflows/update-version.yml
     secrets:
       PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
