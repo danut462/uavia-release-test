@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.7.4](https://github.com/danut462/uavia-release-test/compare/2.7.3...2.7.4) (2026-03-06)
+
+
+### 🐞 Bug Fixes
+
+* ee ([a8719f4](https://github.com/danut462/uavia-release-test/commit/a8719f4563cd5d6ddf58b9b060196fc50563d1b4))
+* xxx ([d092189](https://github.com/danut462/uavia-release-test/commit/d0921893e415b9dddf18efbd2a5206f507bef075))
+
 ## [2.7.3](https://github.com/danut462/uavia-release-test/compare/2.7.2...2.7.3) (2026-03-06)
 
 
