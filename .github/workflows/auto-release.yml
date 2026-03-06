@@ -14,6 +14,10 @@ on:
         description: 'Whether to release or not'
         required: true
         type: boolean
+      repositories-dependancies:
+        type: string
+        description: 'Comma-separated list of repository names (e.g., "UAVIA/uavia-ckt,UAVIA/uavia-srp")'
+        required: true
 
 
 # Required permissions for release-please to create releases and PRs
@@ -46,7 +50,7 @@ jobs:
     secrets:
       PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
     with:
-      repositories: "UAVIA/uavia-ckt,UAVIA/srp,UAVIA/uavia-navtools,UAVIA/uavia-protocol"
+      repositories: ${{inputs.repositories-dependancies}}
 
   # Step 3: Modify files in the PR (add more modification workflows here as needed)
 

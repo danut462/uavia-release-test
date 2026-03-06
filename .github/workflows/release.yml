@@ -28,3 +28,4 @@ jobs:
     with:
       cascade: ${{ fromJSON(needs.detect-cascade.outputs.cascade) }}
       release: ${{ github.event.head_commit != null && startsWith(github.event.head_commit.message, 'release:') }}
+      repositories-dependancies: "UAVIA/uavia-ckt,UAVIA/srp,UAVIA/uavia-navtools,UAVIA/uavia-protocol"
