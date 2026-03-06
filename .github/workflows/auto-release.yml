@@ -34,7 +34,7 @@ jobs:
   # Step 1: Get PR info (number and version)
   get-release-pr-info:
     needs: release-please
-    if: startsWith(inputs.release == true)
+    if: inputs.release == true
     uses: ./.github/workflows/get-release-pr-info.yml
     secrets:
       PAT_TOKEN: ${{ secrets.PAT_TOKEN }}

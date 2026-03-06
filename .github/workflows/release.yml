@@ -27,4 +27,4 @@ jobs:
     secrets: inherit
     with:
       cascade: ${{ fromJSON(needs.detect-cascade.outputs.cascade) }}
-      release: ${{ startsWith(github.event.head_commit.message, 'release:')}}
+      release: ${{ github.event.head_commit != null && startsWith(github.event.head_commit.message, 'release:') }}
