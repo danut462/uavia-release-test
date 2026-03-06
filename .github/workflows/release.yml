@@ -1,4 +1,4 @@
-name: Release-Please
+name: Auto-Release
 
 # This workflow runs on every push to main and updates the release PR
 on:
