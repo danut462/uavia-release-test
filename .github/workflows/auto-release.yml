@@ -9,6 +9,11 @@ on:
         required: false
         type: string
         default: ""
+      commit_message:
+        description: 'Commit message from the triggering push event'
+        required: false
+        type: string
+        default: ""
     secrets:
       PAT_TOKEN:
         required: true
@@ -27,7 +32,7 @@ jobs:
   # Check if release-please created a PR
   check-no-pr-cascade:
     needs: [release-please]
-    if: startsWith(github.event.head_commit.message, 'release:')
+    if: startsWith(inputs.commit_message, 'release:')
     runs-on: ubuntu-latest
     outputs:
       no_pr: ${{ steps.check.outputs.no_pr }}
@@ -76,7 +81,7 @@ jobs:
   get-release-pr-info:
     needs: [release-please, check-no-pr-cascade]
     if: |
-      startsWith(github.event.head_commit.message, 'release:') &&
+      startsWith(inputs.commit_message, 'release:') &&
       needs.check-no-pr-cascade.outputs.no_pr == 'false'
     uses: ./.github/workflows/get-release-pr-info.yml
     secrets:
@@ -86,7 +91,7 @@ jobs:
   get-dependency-versions:
     needs: [release-please, check-no-pr-cascade, get-release-pr-info]
     if: |
-      startsWith(github.event.head_commit.message, 'release:') &&
+      startsWith(inputs.commit_message, 'release:') &&
       needs.check-no-pr-cascade.outputs.no_pr == 'false'
     uses: ./.github/workflows/get-dependency-versions.yml
     secrets:
@@ -212,7 +217,7 @@ jobs:
   # 3c. Add cascade marker to PR branch if cascade flag detected
   add-cascade-marker:
     needs: [get-release-pr-info, update-conanfile]
-    if: contains(github.event.head_commit.message, '[cascade]')
+    if: contains(inputs.commit_message, '[cascade]')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
