@@ -62,10 +62,10 @@ jobs:
   get-dependency-versions:
     needs: [release-please, get-release-pr-info]
     if: |
-        always() &&
-        needs.get-release-pr-info.result == 'success' &&
-        needs.get-release-pr-info.outputs.pr_number != '-1' &&
-        needs.get-release-pr-info.outputs.version != '-1'
+      always() &&
+      needs.get-release-pr-info.result == 'success' &&
+      needs.get-release-pr-info.outputs.pr_number != '-1' &&
+      needs.get-release-pr-info.outputs.version != '-1'
     uses: ./.github/workflows/get-dependency-versions.yml
     secrets:
       PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
@@ -77,12 +77,13 @@ jobs:
   # 3a. Update version.txt
   update-version:
     needs: [get-release-pr-info, get-dependency-versions]
-    if: | 
-        always() && 
-        !cancelled() &&
-        needs.get-release-pr-info.result == 'success' &&
-        needs.get-release-pr-info.outputs.pr_number != '-1' &&
-        needs.get-release-pr-info.outputs.version != '-1'
+    if: |
+      always() &&
+      !cancelled() &&
+      needs.get-release-pr-info.result == 'success' &&
+      needs.get-dependency-versions.result == 'success' &&
+      needs.get-release-pr-info.outputs.pr_number != '-1' &&
+      needs.get-release-pr-info.outputs.version != '-1'
     uses: ./.github/workflows/update-version.yml
     secrets:
       PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
@@ -93,7 +94,12 @@ jobs:
   # 3b. Update conanfile.py dependencies
   update-conanfile:
     needs: [get-release-pr-info, get-dependency-versions, update-version]
-    if: ${{ !cancelled() && needs.get-dependency-versions.result == 'success' }}
+    if: |
+      always() &&
+      !cancelled() &&
+      needs.get-release-pr-info.result == 'success' &&
+      needs.get-dependency-versions.result == 'success' &&
+      needs.update-version.result == 'success'
     uses: ./.github/workflows/update-conanfile.yml
     secrets:
       PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
@@ -105,7 +111,11 @@ jobs:
   # 3c. Add cascade marker to PR branch if cascade flag is true
   add-cascade-marker:
     needs: [get-release-pr-info, update-conanfile]
-    if: inputs.cascade == true
+    if: |
+      always() &&
+      inputs.cascade == true &&
+      needs.get-release-pr-info.result == 'success' &&
+      needs.update-conanfile.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -159,8 +169,8 @@ jobs:
     if: |
       always() &&
       needs.get-release-pr-info.result == 'success' &&
-      (needs.update-version.result == 'success' || needs.update-version.result == 'skipped') &&
-      (needs.update-conanfile.result == 'success' || needs.update-conanfile.result == 'skipped') &&
+      needs.update-version.result == 'success' &&
+      needs.update-conanfile.result == 'success' &&
       (needs.add-cascade-marker.result == 'success' || needs.add-cascade-marker.result == 'skipped')
     uses: ./.github/workflows/auto-merge-release.yml
     secrets:
