@@ -142,7 +142,9 @@ jobs:
   # Step 5: Prepare "main" versions for dependencies
   prepare-main-versions:
     needs: [get-dependency-versions, auto-merge-release]
-    if: needs.auto-merge-release.result == 'success'
+    if: |
+      always() &&
+      needs.auto-merge-release.result == 'success'
     runs-on: ubuntu-latest
     outputs:
       main_versions: ${{ steps.transform.outputs.main_versions }}
@@ -162,6 +164,9 @@ jobs:
   # Step 6: Reset dependencies back to "main" on main branch (after release is merged)
   reset-conanfile-to-main:
     needs: [prepare-main-versions]
+    if: |
+      always() && 
+      needs.prepare-main-versions.result == 'success'
     uses: ./.github/workflows/update-conanfile.yml
     secrets:
       PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
